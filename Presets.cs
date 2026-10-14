@@ -2,12 +2,13 @@ namespace MicroPresets;
 
 using System.IO;
 
-internal sealed record Preset(string Position, string HardwareKey, string Model, string Effort, int EffortPosition);
+internal sealed record Preset(string Position, string HardwareKey, string Model, string Effort, int EffortPosition, bool Enabled = true);
 
 internal static class Presets
 {
-    private static readonly string[] Positions = ["H", "I", "J"];
-    private static readonly string[] HardwareKeys = ["ACT07", "ACT08", "ACT09"];
+    internal static readonly string[] Positions = ["G", "H", "I", "J", "K", "L", "M"];
+    internal static readonly string[] DefaultActions = ["New chat", "Decrease reasoning", "Increase reasoning", "Fork chat", "Dictation", "Send message", "Your dot"];
+    private static readonly string[] HardwareKeys = ["ACT06", "ACT07", "ACT08", "ACT09", "ACT10", "ACT11", "ACT12"];
 
     internal static readonly string[] KnownModels =
     [
@@ -20,9 +21,13 @@ internal static class Presets
 
     internal static Preset[] Defaults() =>
     [
+        new("G", "ACT06", "GPT-6.1 Sol", "High", 3, false),
         new("H", "ACT07", "GPT-6 Luna", "Extra High", 4),
         new("I", "ACT08", "GPT-6.1 Sol", "High", 3),
-        new("J", "ACT09", "GPT-6 Astra", "Low", 1)
+        new("J", "ACT09", "GPT-6 Astra", "Low", 1),
+        new("K", "ACT10", "GPT-6.1 Sol", "High", 3, false),
+        new("L", "ACT11", "GPT-6.1 Sol", "High", 3, false),
+        new("M", "ACT12", "GPT-6.1 Sol", "High", 3, false)
     ];
 
     internal static Preset[] WithAssignments(IEnumerable<Preset> presets)
@@ -30,9 +35,16 @@ internal static class Presets
         var assigned = presets.OrderBy(preset => Array.IndexOf(Positions, preset.Position)).ToArray();
         if (assigned.Length != Positions.Length || assigned.Where((preset, index) =>
                 preset.Position != Positions[index] || preset.HardwareKey != HardwareKeys[index] ||
-                string.IsNullOrWhiteSpace(preset.Model) || preset.EffortPosition is < 1 or > 5).Any())
-            throw new InvalidDataException("Preset settings must include one valid assignment for H, I, and J.");
+                string.IsNullOrWhiteSpace(preset.Model) || preset.Model.Length > 100 || preset.EffortPosition is < 1 or > 6).Any())
+            throw new InvalidDataException("Settings must include one valid assignment for each key from G through M.");
         return assigned;
+    }
+
+    internal static Preset[] MigrateLegacy(Preset[] presets)
+    {
+        if (presets.Length != 3 || !presets.Select(p => p.Position).Order().SequenceEqual(new[] { "H", "I", "J" }))
+            throw new InvalidDataException("The legacy assignments are invalid.");
+        return WithAssignments(Defaults().Select(p => presets.SingleOrDefault(old => old.Position == p.Position) ?? p));
     }
 
     internal static void SetAll(IEnumerable<Preset> presets) => Volatile.Write(ref all, WithAssignments(presets));

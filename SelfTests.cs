@@ -47,6 +47,31 @@ internal static class SelfTests
         Check("read extra-high label and model exactly", () => ModelSelector.ParsePower("GPT-6 Luna Extra High, 4 of 5.", "GPT-6 Luna")?.Label == "Extra High");
         Check("recognize Low and High display aliases", () => ModelSelector.EffortMatches("Low", "Light") && ModelSelector.EffortMatches("High", "Extended"));
         Check("reject unexpected reasoning labels", () => !ModelSelector.EffortMatches("High", "Medium") && !ModelSelector.EffortMatches("Extra High", "Max"));
+        Check("migrate existing H I J assignments without enabling other keys", () => {
+            var legacy = Presets.Defaults().Where(p => p.Enabled).ToArray();
+            var migrated = Presets.MigrateLegacy(legacy);
+            return migrated.Length == 7 && migrated.Count(p => p.Enabled) == 3 && migrated.Single(p => p.Position == "H") == legacy[0];
+        });
+        Check("each of the seven lower keys can override independently", () => {
+            try {
+                foreach (var target in Presets.Defaults()) {
+                    Presets.SetAll(Presets.Defaults().Select(p => p with { Enabled = p.Position == target.Position }));
+                    foreach (var key in Presets.All)
+                        if (new ReportDecoder().Feed(1, Packet(Notify(key.HardwareKey, 1))).Count != (key.Position == target.Position ? 1 : 0)) return false;
+                }
+                return true;
+            } finally { Presets.SetAll(Presets.Defaults()); }
+        });
+        Check("default mode passes all lower keys through", () => {
+            try {
+                Presets.SetAll(Presets.Defaults().Select(p => p with { Enabled = false }));
+                return Presets.All.All(p => new ReportDecoder().Feed(1, Packet(Notify(p.HardwareKey, 1))).Count == 0);
+            } finally { Presets.SetAll(Presets.Defaults()); }
+        });
+        Check("reject duplicate or remapped hardware keys", () => {
+            try { Presets.WithAssignments(Presets.Defaults().Select(p => p.Position == "G" ? p with { HardwareKey = "AG00" } : p)); return false; }
+            catch (System.IO.InvalidDataException) { return true; }
+        });
         Console.WriteLine($"{passed} tests passed.");
     }
 

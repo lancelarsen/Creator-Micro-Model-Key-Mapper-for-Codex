@@ -42,7 +42,7 @@ internal sealed class ReportDecoder
             if (!(root.TryGetProperty("p", out var parameters) || root.TryGetProperty("params", out parameters)) || parameters.ValueKind != JsonValueKind.Object) return null;
             if (!parameters.TryGetProperty("act", out var action) || !action.TryGetInt32(out int value) || value != 1) return null;
             if (!parameters.TryGetProperty("k", out var key) || key.ValueKind != JsonValueKind.String) return null;
-            return Presets.All.FirstOrDefault(preset => preset.HardwareKey == key.GetString());
+            return Presets.All.FirstOrDefault(preset => preset.Enabled && preset.HardwareKey == key.GetString());
         }
         catch (JsonException) { return null; }
         catch (InvalidOperationException) { return null; }

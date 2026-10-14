@@ -20,8 +20,12 @@ internal static class PresetStore
         if (!File.Exists(SettingsPath)) return Presets.Defaults();
         var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(SettingsPath), JsonOptions)
             ?? throw new InvalidDataException("The model assignments file is empty or damaged.");
-        if (settings.SchemaVersion != 1) throw new InvalidDataException("This model assignments file uses an unsupported version.");
-        return Presets.WithAssignments(settings.Presets);
+        return settings.SchemaVersion switch
+        {
+            1 => Presets.MigrateLegacy(settings.Presets),
+            2 => Presets.WithAssignments(settings.Presets),
+            _ => throw new InvalidDataException("This model assignments file uses an unsupported version.")
+        };
     }
 
     internal static void Save(IEnumerable<Preset> presets)
@@ -29,7 +33,7 @@ internal static class PresetStore
         var valid = Presets.WithAssignments(presets);
         Directory.CreateDirectory(DataDirectory);
         string temporary = SettingsPath + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(new Settings(1, valid), JsonOptions));
+        File.WriteAllText(temporary, JsonSerializer.Serialize(new Settings(2, valid), JsonOptions));
         File.Move(temporary, SettingsPath, overwrite: true);
     }
 }
