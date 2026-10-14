@@ -1,4 +1,4 @@
-param([string]$InputDirectory = (Join-Path (Split-Path $PSScriptRoot -Parent) 'artifacts\codex-demo'))
+param([string]$InputDirectory = (Join-Path (Split-Path $PSScriptRoot -Parent) 'artifacts\codex-demo-full'))
 $ErrorActionPreference = 'Stop'
 $projectDirectory = Split-Path $PSScriptRoot -Parent
 $mediaDirectory = Join-Path $projectDirectory 'docs\media'
@@ -7,28 +7,38 @@ $duration = [double]::Parse((Get-Content (Join-Path $InputDirectory 'end.txt') -
 function Number($value) { ([double]$value).ToString('0.000', [Globalization.CultureInfo]::InvariantCulture) }
 $font = "fontfile='C\:/Windows/Fonts/segoeui.ttf'"
 $filters = [Collections.Generic.List[string]]::new()
-$filters.Add('pad=iw:ih+140:0:140:color=0x17181C')
-$filters.Add("drawtext=$font`:text='CREATOR MICRO  /  LIVE CODEX':x=30:y=16:fontsize=20:fontcolor=0xABAEBC")
+$filters.Add('[0:v]scale=960:-2:flags=lanczos,pad=1400:820:440:80:color=0x17181C[canvas]')
+$filters.Add('[1:v]scale=360:360:flags=lanczos[idle]')
+$filters.Add('[canvas][idle]overlay=30:210[base0]')
 for ($index = 0; $index -lt 3; $index++) {
-    $x = 30 + $index * 80
+    $event = $events[$index]
+    if ($event.key -ne @('H','I','J')[$index] -or $event.exitCode -ne 0) { throw 'Expected verified preset selections in order.' }
+    $start = Number $event.indication
+    $end = if ($index -lt 2) { Number $events[$index + 1].indication } else { Number $duration }
+    $filters.Add("[$($index+2):v]scale=360:360:flags=lanczos[key$index]")
+    $filters.Add("[base$index][key$index]overlay=30:210:enable='between(t,$start,$end)'[base$($index+1)]")
+}
+$labels = [Collections.Generic.List[string]]::new()
+$labels.Add("drawtext=$font`:text='Creator Micro':x=30:y=60:fontsize=30:fontcolor=white")
+$labels.Add("drawtext=$font`:text='Press a mapped key':x=30:y=110:fontsize=22:fontcolor=0xABAEBC")
+$labels.Add("drawtext=$font`:text='Live Codex':x=460:y=28:fontsize=28:fontcolor=white")
+for ($index = 0; $index -lt 3; $index++) {
     $key = @('H','I','J')[$index]
-    $filters.Add("drawbox=x=$x`:y=52:w=62:h=62:color=0x292A31:t=fill")
-    $filters.Add("drawbox=x=$x`:y=52:w=62:h=62:color=0x45464D:t=2")
     $event = $events[$index]
     if ($event.key -ne $key -or $event.exitCode -ne 0) { throw 'The recording must contain verified H, I, J selections in order.' }
     $start = Number $event.indication
     $end = if ($index -lt 2) { Number $events[$index + 1].indication } else { Number $duration }
     $enabled = "enable='between(t,$start,$end)'"
-    $filters.Add("drawbox=x=$x`:y=52:w=62:h=62:color=0x7566DC:t=fill:$enabled")
-    $filters.Add("drawtext=$font`:text='$key':x=$($x+20):y=65:fontsize=32:fontcolor=white")
-    $label = @('Luna / Extra High','6.1 Sol / High','6 Astra / Low')[$index]
-    $filters.Add("drawtext=$font`:text='$label':x=296:y=58:fontsize=30:fontcolor=white:$enabled")
-    $filters.Add("drawtext=$font`:text='Preset trigger':x=296:y=99:fontsize=18:fontcolor=0xABAEBC:$enabled")
+    $model = @('GPT-6 Luna','GPT-6.1 Sol','GPT-6 Astra')[$index]
+    $effort = @('Extra High','High','Low')[$index]
+    $labels.Add("drawtext=$font`:text='$model':x=30:y=610:fontsize=28:fontcolor=white:$enabled")
+    $labels.Add("drawtext=$font`:text='$effort':x=30:y=655:fontsize=24:fontcolor=0xB1A4FF:$enabled")
 }
-$filters.Add('scale=1120:-2:flags=lanczos')
+$filters.Add('[base3]' + ($labels -join ',') + '[out]')
 $outputVideo = Join-Path $mediaDirectory 'codex-presets.mp4'
-& ffmpeg -y -hide_banner -loglevel error -i (Join-Path $InputDirectory 'raw.mp4') -t (Number $duration) -vf ($filters -join ',') -c:v libx264 -crf 18 -pix_fmt yuv420p -movflags +faststart $outputVideo
+$keypadDirectory = Join-Path $projectDirectory 'assets\demo-keypad'
+& ffmpeg -y -hide_banner -loglevel error -i (Join-Path $InputDirectory 'raw.mp4') -loop 1 -i (Join-Path $keypadDirectory 'idle.png') -loop 1 -i (Join-Path $keypadDirectory 'luna.png') -loop 1 -i (Join-Path $keypadDirectory 'sol.png') -loop 1 -i (Join-Path $keypadDirectory 'astra.png') -t (Number $duration) -filter_complex ($filters -join ';') -map '[out]' -c:v libx264 -crf 18 -pix_fmt yuv420p -movflags +faststart $outputVideo
 if ($LASTEXITCODE -ne 0) { throw 'Codex demo video encoding failed.' }
-& ffmpeg -y -hide_banner -loglevel error -i $outputVideo -filter_complex 'fps=12,scale=960:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=full[p];[b][p]paletteuse=dither=none:diff_mode=rectangle' -loop 0 (Join-Path $mediaDirectory 'codex-presets.gif')
+& ffmpeg -y -hide_banner -loglevel error -i $outputVideo -filter_complex 'fps=12,scale=1100:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=full[p];[b][p]paletteuse=dither=none:diff_mode=rectangle' -loop 0 (Join-Path $mediaDirectory 'codex-presets.gif')
 if ($LASTEXITCODE -ne 0) { throw 'Codex demo GIF encoding failed.' }
 Get-Item $outputVideo, (Join-Path $mediaDirectory 'codex-presets.gif') | Select-Object Name, Length

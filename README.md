@@ -14,11 +14,11 @@ Built by [Lance Larsen](https://www.LanceLarsen.com). Independent community proj
 
 ### Switch models in Codex
 
-![Live Codex composer switching between Luna Extra High, Sol High, and Astra Low with highlighted key indicators](docs/media/codex-presets.gif)
+![Live Codex composer switching between Luna Extra High, Sol High, and Astra Low with the matching keys highlighted on the Creator Micro graphic](docs/media/codex-presets.gif)
 
 [Watch or download the Codex preset demo](docs/media/codex-presets.mp4)
 
-The key indicators appear before each preset trigger. Codex displays **Light** for the Astra **Low** preset.
+The mapped key highlights on the keyboard graphic before each model change. Codex displays **Light** for the Astra **Low** preset.
 
 ### Configure your keys
 
