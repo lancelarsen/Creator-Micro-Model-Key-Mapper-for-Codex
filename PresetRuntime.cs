@@ -28,7 +28,7 @@ internal static class PresetRuntime
         catch (WaitHandleCannotBeOpenedException) { }
     }
 
-    internal static void Run(string logPath)
+    internal static void Run(string logPath, bool showSettings = false)
     {
         using var mutex = new Mutex(true, MutexName, out bool created);
         if (!created) return;
@@ -67,7 +67,7 @@ internal static class PresetRuntime
             try
             {
                 nint window = ModelSelector.FindWindow();
-                if (!ModelSelector.IsForeground(window)) throw new InvalidOperationException("Focus Codex before pressing H, I, or J.");
+                if (!ModelSelector.IsForeground(window)) throw new InvalidOperationException("Focus Codex before pressing a model key.");
                 string executable = Path.Combine(AppContext.BaseDirectory, "CodexMicroPresets.exe");
                 var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
                 start.ArgumentList.Add("--select"); start.ArgumentList.Add(preset.Position);
@@ -78,7 +78,8 @@ internal static class PresetRuntime
                 string result = await output, error = await errors;
                 if (worker.ExitCode != 0) throw new InvalidOperationException(error.Trim());
                 Log(new { kind = "preset-selected", preset.Position, preset.Model, preset.Effort, result = result.Trim() });
-                icon.Text = $"{preset.Position}: {preset.Model} {preset.Effort}";
+                string tooltip = $"{preset.Position}: {preset.Model} {preset.Effort}";
+                icon.Text = tooltip.Length > 63 ? tooltip[..63] : tooltip;
             }
             catch (Exception error)
             {
@@ -100,13 +101,14 @@ internal static class PresetRuntime
             assignmentItems.Clear();
             foreach (var preset in Presets.All)
             {
-                var item = menu.Items.Add($"{preset.Position}: {preset.Model} — {preset.Effort}");
+                var item = menu.Items.Add(preset.Enabled ? $"{preset.Position}: {preset.Model} — {preset.Effort}" : $"{preset.Position}: (default)");
                 item.Enabled = false;
                 assignmentItems.Add(item);
             }
         }
         void ShowSettings()
         {
+            if (working) { Notify("Wait for model selection to finish, then open settings."); return; }
             if (settingsWindow is { IsDisposed: false }) { settingsWindow.Activate(); settingsWindow.BringToFront(); return; }
             try
             {
@@ -117,7 +119,7 @@ internal static class PresetRuntime
                     Presets.SetAll(presets);
                     UpdateAssignmentMenu();
                     Log(new { kind = "assignments-saved", assignments = Presets.All.Select(preset => new { preset.Position, preset.Model, preset.EffortPosition }).ToArray() });
-                    Notify("H, I, and J model assignments saved.");
+                    Notify("Key assignments saved.");
                 };
                 form.FormClosed += (_, _) => settingsWindow = null;
                 form.Show();
@@ -126,12 +128,24 @@ internal static class PresetRuntime
             catch (Exception error) { Notify(error.Message); }
         }
         UpdateAssignmentMenu();
+        DateTime lastSettingsWrite = File.Exists(PresetStore.SettingsPath) ? File.GetLastWriteTimeUtc(PresetStore.SettingsPath) : DateTime.MinValue;
+        using var settingsTimer = new System.Windows.Forms.Timer { Interval = 1000, Enabled = true };
+        settingsTimer.Tick += (_, _) => {
+            if (working || settingsWindow is { IsDisposed: false }) return;
+            var modified = File.Exists(PresetStore.SettingsPath) ? File.GetLastWriteTimeUtc(PresetStore.SettingsPath) : DateTime.MinValue;
+            if (modified == lastSettingsWrite) return;
+            try { Presets.SetAll(PresetStore.Load()); UpdateAssignmentMenu(); lastSettingsWrite = modified; }
+            catch (Exception e) { Log(new { kind = "settings-reload-error", message = e.Message }); lastSettingsWrite = modified; }
+        };
         var pause = menu.Items.Add("Pause");
         pause.Click += (_, _) => { paused = !paused; pause.Text = paused ? "Resume" : "Pause"; pending = null; icon.Text = paused ? "Micro presets: paused" : "Micro model presets"; };
-        menu.Items.Add("Exit", null, (_, _) => System.Windows.Forms.Application.ExitThread());
+        menu.Items.Add("Exit", null, (_, _) => {
+            if (settingsWindow is PresetConfigurationForm { IsBusy: true }) { Notify("Wait for the settings operation to finish before exiting."); return; }
+            System.Windows.Forms.Application.ExitThread();
+        });
         icon.MouseClick += (_, eventArgs) => { if (eventArgs.Button == MouseButtons.Left) ShowSettings(); };
         using var listener = new MicroInputListener((device, report) => {
-            if (paused || exiting) return;
+            if (paused || exiting || settingsWindow is PresetConfigurationForm { IsDisposed: false, IsBusy: true }) return;
             foreach (var preset in decoder.Feed(device, report))
             {
                 long now = Environment.TickCount64;
@@ -142,7 +156,8 @@ internal static class PresetRuntime
             }
         }, Log);
         var registration = ThreadPool.RegisterWaitForSingleObject(stop, (_, _) => PostThreadMessage(threadId, 0x12, 0, 0), null, Timeout.Infinite, executeOnlyOnce: true);
-        Log(new { kind = "running", pid = Environment.ProcessId, positions = new[] { "H", "I", "J" } });
+        Log(new { kind = "running", pid = Environment.ProcessId, positions = Presets.All.Where(p => p.Enabled).Select(p => p.Position).ToArray() });
+        if (showSettings) dispatcher.BeginInvoke(ShowSettings);
         try { System.Windows.Forms.Application.Run(); }
         finally
         {

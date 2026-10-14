@@ -19,6 +19,7 @@ internal static class ModelSelector
 
     internal static string Select(Preset preset)
     {
+        using var operation = new CodexOperation();
         nint window = FindWindow();
         RequireForeground(window);
         var root = AutomationElement.FromHandle(window);
@@ -49,7 +50,8 @@ internal static class ModelSelector
             stage = "reading reasoning status";
             WaitFor(() => FindVisible(root, ControlType.MenuItem, name => name == "Power"));
             var state = WaitFor(() => ReadPower(root, preset.Model));
-            int targetPosition = Math.Min(preset.EffortPosition, state.Total);
+            int targetPosition = preset.EffortPosition;
+            if (targetPosition > state.Total) throw new InvalidOperationException($"{preset.Model} does not offer the requested reasoning level. Choose another level.");
             Thread.Sleep(150);
             for (int attempt = 0; state.Position != targetPosition && attempt < 10; attempt++)
             {
@@ -67,6 +69,7 @@ internal static class ModelSelector
                 state = WaitFor(() => { var current = ReadPower(root, preset.Model); return current?.Position != previous ? current : null; });
             }
             if (state.Position != targetPosition) throw new InvalidOperationException("Reasoning verification failed.");
+            if (!EffortMatches(preset.Effort, state.Label)) throw new InvalidOperationException($"Codex selected {state.Label}, which does not match {preset.Effort}. Check this model's reasoning choices.");
             CheckContext();
             PressKey(0x1B);
             opened = false;
@@ -135,8 +138,8 @@ internal static class ModelSelector
         var watch = Stopwatch.StartNew();
         while (watch.ElapsedMilliseconds < 2500)
         {
-            T? value = read();
-            if (value != null) return value;
+            try { T? value = read(); if (value != null) return value; }
+            catch (ElementNotAvailableException) { /* A page transition replaced the control; read the new tree. */ }
             Thread.Sleep(50);
         }
         throw new TimeoutException("Codex did not expose the expected model control.");
@@ -153,7 +156,15 @@ internal static class ModelSelector
     {
         nint window = FindWindow();
         if (IsIconic(window)) ShowWindow(window, 9);
-        if (!SetForegroundWindow(window) && !IsForeground(window)) throw new InvalidOperationException("Focus Codex and try again.");
+        SetForegroundWindow(window);
+        if (!IsForeground(window))
+        {
+            try { AutomationElement.FromHandle(window).SetFocus(); }
+            catch (InvalidOperationException) { }
+        }
+        var watch = Stopwatch.StartNew();
+        while (!IsForeground(window) && watch.ElapsedMilliseconds < 1000) Thread.Sleep(50);
+        if (!IsForeground(window)) throw new InvalidOperationException("Focus Codex and try again.");
     }
 
     internal static void CloseControls()
@@ -174,6 +185,7 @@ internal static class ModelSelector
 
     internal static string[] ListAvailableModels()
     {
+        using var operation = new CodexOperation();
         nint window = FindWindow();
         FocusApp();
         var root = AutomationElement.FromHandle(window);
@@ -214,6 +226,9 @@ internal static class ModelSelector
         "Low" => actual is "Low" or "Light",
         "High" => actual is "High" or "Extended",
         "Extra High" => actual == "Extra High",
+        "Medium" => actual is "Medium" or "Standard",
+        "Maximum" => actual is "Maximum" or "Max",
+        "Ultra" => actual == "Ultra",
         _ => false
     };
 
@@ -231,7 +246,7 @@ internal static class ModelSelector
             {
                 if (Automation.Compare(hit, expected) || alternative != null && Automation.Compare(hit, alternative)) { matches = true; break; }
             }
-            if (!matches) throw new InvalidOperationException("The expected control is no longer under the pointer.");
+            if (!matches) throw new InvalidOperationException($"The expected control '{expected.Current.Name}' is no longer under the pointer at {x}, {y}.");
             Input[] events = [new() { Type = 0, Data = new InputUnion { Mouse = new MouseInput { Flags = 2 } } },
                 new() { Type = 0, Data = new InputUnion { Mouse = new MouseInput { Flags = 4 } } }];
             if (SendInput((uint)events.Length, events, Marshal.SizeOf<Input>()) != events.Length)
@@ -242,7 +257,7 @@ internal static class ModelSelector
 
     internal static void ClickElement(AutomationElement element)
     {
-        if (element.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var scroll)) ((ScrollItemPattern)scroll).ScrollIntoView();
+        if (element.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var scroll)) { ((ScrollItemPattern)scroll).ScrollIntoView(); Thread.Sleep(300); }
         var rectangle = element.Current.BoundingRectangle;
         if (element.Current.IsOffscreen || rectangle.Width <= 0 || rectangle.Height <= 0) throw new InvalidOperationException("The target control is not visible.");
         ClickPoint(FindWindow(), (int)Math.Round(rectangle.Left + rectangle.Width / 2), (int)Math.Round(rectangle.Top + rectangle.Height / 2), element);

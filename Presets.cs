@@ -9,6 +9,7 @@ internal static class Presets
     internal static readonly string[] Positions = ["G", "H", "I", "J", "K", "L", "M"];
     internal static readonly string[] DefaultActions = ["New chat", "Decrease reasoning", "Increase reasoning", "Fork chat", "Dictation", "Send message", "Your dot"];
     private static readonly string[] HardwareKeys = ["ACT06", "ACT07", "ACT08", "ACT09", "ACT10", "ACT11", "ACT12"];
+    internal static readonly string[] EffortNames = ["Low", "Medium", "High", "Extra High", "Maximum", "Ultra"];
 
     internal static readonly string[] KnownModels =
     [
@@ -37,7 +38,7 @@ internal static class Presets
                 preset.Position != Positions[index] || preset.HardwareKey != HardwareKeys[index] ||
                 string.IsNullOrWhiteSpace(preset.Model) || preset.Model.Length > 100 || preset.EffortPosition is < 1 or > 6).Any())
             throw new InvalidDataException("Settings must include one valid assignment for each key from G through M.");
-        return assigned;
+        return assigned.Select(p => p with { Effort = EffortNames[p.EffortPosition - 1] }).ToArray();
     }
 
     internal static Preset[] MigrateLegacy(Preset[] presets)
