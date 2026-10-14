@@ -12,11 +12,19 @@ Built by [Lance Larsen](https://www.LanceLarsen.com). Independent community proj
 
 ## See it in action
 
+### Switch models in Codex
+
+![Live Codex composer switching between Luna Extra High, Sol High, and Astra Low with highlighted key indicators](docs/media/codex-presets.gif)
+
+[Watch or download the Codex preset demo](docs/media/codex-presets.mp4)
+
+The key indicators appear before each preset trigger. Codex displays **Light** for the Astra **Low** preset.
+
+### Configure your keys
+
 ![Animated demo of opening the model panel, changing reasoning, selecting keys, and closing the panel](docs/media/editor-demo.gif)
 
 [Watch or download the MP4 demo](docs/media/editor-demo.mp4)
-
-These are captures of the actual Windows MAUI interface at 175% display scaling. The animation uses example assignments to demonstrate the editor and its transitions. It does not show a physical key press or a live model change in Codex, and the capture does not modify saved bindings.
 
 ## What you can do
 
