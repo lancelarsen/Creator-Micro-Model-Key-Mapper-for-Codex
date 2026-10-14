@@ -13,5 +13,7 @@ internal sealed class EditorDraft
         Assignments = Original.ToArray();
         RefreshOnOpen = originalRefresh = reply.RefreshOnOpen;
     }
+    internal void Discard() { Assignments = Original.ToArray(); RefreshOnOpen = originalRefresh; }
+    internal void SetRefreshPreference(bool value) { RefreshOnOpen = originalRefresh = value; }
     internal EditorRequest SaveRequest() => new("save", Original, Presets.WithAssignments(Assignments), RefreshOnOpen);
 }

@@ -1,49 +1,67 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" xmlns:local="clr-namespace:CreatorMicroEditor" x:Class="CreatorMicroEditor.MainPage" BackgroundColor="{StaticResource Background}">
- <ScrollView x:Name="PageScroll"><VerticalStackLayout Padding="32,24" Spacing="22">
-  <Grid ColumnDefinitions="*,Auto">
-   <VerticalStackLayout Spacing="5"><Label Text="Creator Micro" FontFamily="Segoe UI Semibold" FontSize="28"/><Label Text="Your models. One keypress away." TextColor="{StaticResource Muted}"/></VerticalStackLayout>
-   <Label Grid.Column="1" Text="MODEL KEYS" FontSize="11" CharacterSpacing="2" TextColor="{StaticResource Accent}" VerticalOptions="Center"/>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" xmlns:local="clr-namespace:CreatorMicroEditor" x:Class="CreatorMicroEditor.MainPage">
+ <ContentPage.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#1B1C20" Offset="0"/><GradientStop Color="#141519" Offset="0.65"/><GradientStop Color="#1A1B1F" Offset="1"/></LinearGradientBrush></ContentPage.Background>
+ <Grid RowDefinitions="Auto,*,Auto">
+  <Grid x:Name="Header" Padding="28,16" RowDefinitions="64,Auto,Auto" RowSpacing="12" ColumnDefinitions="64,*,Auto,Auto" ColumnSpacing="16">
+   <Image Source="mapper_icon.png" WidthRequest="64" HeightRequest="64" SemanticProperties.Description="Codex model keycap"/>
+   <VerticalStackLayout x:Name="BrandText" Grid.Column="1" Spacing="3" VerticalOptions="Center"><Label x:Name="AppTitle" Text="Creator Micro" FontFamily="Segoe UI Semibold" FontSize="24"/><Label Text="Model Key Mapper for Codex" FontSize="16" TextColor="#ABAEBC"/></VerticalStackLayout>
+   <Label Grid.Row="1" Grid.ColumnSpan="4" Text="Your favorite Codex models and reasoning levels, one keypress away!" FontSize="18" TextColor="White" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+   <Button x:Name="RefreshButton" Grid.Column="2" Text="Refresh Models" Clicked="RefreshClicked" BackgroundColor="#232429" BorderColor="#45464D" BorderWidth="1" CornerRadius="8" HeightRequest="40" Padding="14,0" FontSize="14" ContentLayout="Left,10" ToolTipProperties.Text="Refresh models from Codex" SemanticProperties.Description="Refresh models from Codex">
+    <Button.ImageSource><FontImageSource FontFamily="Segoe Fluent Icons" Glyph="&#xE72C;" Color="#B5A0F4" Size="21"/></Button.ImageSource>
+   </Button>
+   <Button x:Name="AboutButton" Grid.Column="3" Text="Settings" Clicked="AboutClicked" BackgroundColor="#232429" BorderColor="#45464D" BorderWidth="1" CornerRadius="8" HeightRequest="40" Padding="14,0" FontSize="14" ContentLayout="Left,10" ToolTipProperties.Text="Settings and project information" SemanticProperties.Description="Settings and project information">
+    <Button.ImageSource><FontImageSource FontFamily="Segoe Fluent Icons" Glyph="&#xE713;" Color="#B5A0F4" Size="21"/></Button.ImageSource>
+   </Button>
+   <BoxView Grid.Row="2" Grid.ColumnSpan="4" HeightRequest="1" Color="#303137" VerticalOptions="End" Margin="-28,-6,-28,-16"/>
   </Grid>
-  <Grid x:Name="Body" ColumnDefinitions="1.15*,*" RowDefinitions="Auto,Auto" ColumnSpacing="28" RowSpacing="22">
-   <VerticalStackLayout x:Name="DevicePanel" Spacing="14" VerticalOptions="Center">
+  <ScrollView x:Name="PageScroll" Grid.Row="1"><VerticalStackLayout>
+   <AbsoluteLayout x:Name="Body" HeightRequest="650">
+    <Label x:Name="KeyInstruction" HorizontalTextAlignment="Center" Text="Select any Black Key to Assign Model" FontSize="16" FontFamily="Segoe UI Semibold"/>
     <local:Keypad x:Name="Keys"/>
-    <Label Text="Select a lower key to customize it." HorizontalTextAlignment="Center" TextColor="{StaticResource Muted}" FontSize="12"/>
-   </VerticalStackLayout>
-   <Border x:Name="EditorPanel" Grid.Column="1" BackgroundColor="{StaticResource Surface}" Stroke="#353740" StrokeShape="RoundRectangle 18" Padding="24">
-    <VerticalStackLayout Spacing="16">
-     <Label Text="KEY ASSIGNMENT" FontSize="10" CharacterSpacing="2" TextColor="{StaticResource Muted}"/>
-     <Label x:Name="SelectionTitle" FontSize="23" FontFamily="Segoe UI Semibold"/>
-     <Grid ColumnDefinitions="*,Auto"><Label Text="Use a model preset" VerticalOptions="Center"/><Switch x:Name="Override" Grid.Column="1" OnColor="{StaticResource Accent}" Toggled="OverrideChanged"/></Grid>
-     <VerticalStackLayout x:Name="PresetFields" Spacing="8">
-      <Label Text="Model" FontSize="12" TextColor="{StaticResource Muted}"/>
-      <Picker x:Name="Model" SemanticProperties.Description="Model" SelectedIndexChanged="ModelChanged"/>
-      <Entry x:Name="CustomModel" Placeholder="Exact model name" IsVisible="False" TextChanged="CustomChanged"/>
-      <Label Text="Reasoning level" FontSize="12" Margin="0,8,0,0" TextColor="{StaticResource Muted}"/>
-      <Picker x:Name="Effort" SemanticProperties.Description="Reasoning level" SelectedIndexChanged="EffortChanged"/>
+    <AbsoluteLayout x:Name="PopupGroup">
+    <Border x:Name="EditorPanel" Stroke="#3B3D47" StrokeThickness="1.2" StrokeShape="RoundRectangle 18" Padding="20,16" BackgroundColor="#222329">
+     <Border.Shadow><Shadow Brush="Black" Opacity="0.24" Radius="22" Offset="0,12"/></Border.Shadow>
+     <VerticalStackLayout Spacing="10">
+      <HorizontalStackLayout Spacing="16" Margin="2,2,0,4"><Image Source="codex.png" WidthRequest="28" HeightRequest="28"/><Label x:Name="SelectionTitle" FontSize="22" FontFamily="Segoe UI Semibold" VerticalOptions="Center"/></HorizontalStackLayout>
+      <Border Stroke="#34353C" StrokeShape="RoundRectangle 10" BackgroundColor="#2A2B31" Padding="0"><Grid ColumnDefinitions="*,1,*" ColumnSpacing="0">
+       <Button BorderWidth="0" BorderColor="Transparent" x:Name="DefaultMode" Text="Default" Clicked="DefaultClicked" Padding="4,0" HeightRequest="40" CornerRadius="0" FontSize="13"/>
+       <Button BorderWidth="0" BorderColor="Transparent" x:Name="PresetMode" Grid.Column="2" Text="Model Mapped" Clicked="PresetClicked" Padding="4,0" HeightRequest="40" CornerRadius="0" FontSize="13"/>
+       <BoxView Grid.Column="1" Color="#575161" InputTransparent="True"/>
+      </Grid></Border>
+      <Switch x:Name="Override" IsVisible="False" Toggled="OverrideChanged"/>
+      <VerticalStackLayout x:Name="PresetFields" Spacing="10">
+       <Border Stroke="#34353B" StrokeShape="RoundRectangle 12" Padding="12,10" BackgroundColor="#2A2B30"><Grid ColumnDefinitions="*,24" RowDefinitions="Auto,Auto" RowSpacing="3">
+        <Label Text="Model" FontSize="13" TextColor="#C3C3CA"/>
+        <Label x:Name="ModelValue" Grid.Row="1" FontSize="16"/>
+        <Label Grid.Column="1" Grid.RowSpan="2" Text="⌄" FontSize="22" TextColor="#C3C3CA" VerticalOptions="Center"/>
+        <Button Grid.ColumnSpan="2" Grid.RowSpan="2" BackgroundColor="Transparent" BorderWidth="0" BorderColor="Transparent" x:Name="ModelButton" Clicked="ChooseModel" SemanticProperties.Description="Choose model"/>
+       </Grid></Border>
+       <Picker x:Name="Model" IsVisible="False" SelectedIndexChanged="ModelChanged"/>
+       <Border Stroke="#34353B" StrokeShape="RoundRectangle 12" Padding="12,10" BackgroundColor="#2A2B30"><Grid ColumnDefinitions="*,24" RowDefinitions="Auto,Auto" RowSpacing="3">
+        <Label Text="Reasoning" FontSize="13" TextColor="#C3C3CA"/>
+        <Label x:Name="EffortValue" Grid.Row="1" FontSize="16"/>
+        <Label Grid.Column="1" Grid.RowSpan="2" Text="⌄" FontSize="22" TextColor="#C3C3CA" VerticalOptions="Center"/>
+        <Button Grid.ColumnSpan="2" Grid.RowSpan="2" BackgroundColor="Transparent" BorderWidth="0" BorderColor="Transparent" x:Name="EffortButton" Clicked="ChooseEffort" SemanticProperties.Description="Choose reasoning"/>
+       </Grid></Border>
+       <Picker x:Name="Effort" IsVisible="False" SelectedIndexChanged="EffortChanged"/>
+      </VerticalStackLayout>
+      <Label x:Name="DefaultHint" Text="No model override" FontSize="13" TextColor="{StaticResource Muted}"/>
+      <BoxView HeightRequest="1" Color="#393A42"/>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+       <Button x:Name="Cancel" Text="Cancel" Clicked="CancelClicked" BackgroundColor="#292A30" BorderWidth="1" BorderColor="#45464D" HeightRequest="42" Padding="6,0"/>
+       <Button x:Name="Save" Grid.Column="1" Text="Done" Clicked="SaveClicked" BorderWidth="1" BorderColor="#8676EE" HeightRequest="42" Padding="6,0"><Button.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#7169CA" Offset="0"/><GradientStop Color="#5A50BC" Offset="0.5"/><GradientStop Color="#8170EC" Offset="1"/></LinearGradientBrush></Button.Background></Button>
+       <ActivityIndicator x:Name="SaveSpinner" Grid.Column="1" WidthRequest="22" HeightRequest="22" Color="White" IsVisible="False" IsRunning="False" InputTransparent="True" HorizontalOptions="Center" VerticalOptions="Center" SemanticProperties.Description="Saving assignments"/>
+      </Grid>
      </VerticalStackLayout>
-     <Label x:Name="DefaultHint" FontSize="12" TextColor="{StaticResource Muted}"/>
-     <BoxView HeightRequest="1" Color="#353740" Margin="0,4"/>
-     <Grid ColumnDefinitions="*,Auto"><Label Text="Available models" VerticalOptions="Center"/><Button Grid.Column="1" Text="Refresh" Clicked="RefreshClicked" Padding="14,8"/></Grid>
-     <Label x:Name="CatalogStatus" FontSize="12" TextColor="{StaticResource Muted}"/>
-     <Grid ColumnDefinitions="Auto,*"><CheckBox HorizontalOptions="Start" WidthRequest="32" x:Name="AutoRefresh" Color="{StaticResource Accent}" CheckedChanged="AutoChanged"/><Label Grid.Column="1" Text="Refresh when settings opens" VerticalOptions="Center" FontSize="12"/></Grid>
-    </VerticalStackLayout>
-   </Border>
+    </Border>
+    <Grid x:Name="Pointer" InputTransparent="True"><Path Data="M 20,0 L 1,18 L 20,36 L 22,36 L 22,0 Z" Fill="#222329"/><Path Data="M 20,0 L 1,18 L 20,36" Stroke="#3B3D47" StrokeThickness="1.2"/></Grid>
+    </AbsoluteLayout>
+   </AbsoluteLayout>
+   <VerticalStackLayout IsVisible="False"><Label x:Name="CatalogStatus"/><CheckBox x:Name="AutoRefresh" CheckedChanged="AutoChanged"/></VerticalStackLayout>
+  </VerticalStackLayout></ScrollView>
+  <Grid x:Name="Footer" Grid.Row="2" Padding="20,8" ColumnDefinitions="*,Auto" ColumnSpacing="16">
+   <Label x:Name="Status" Text="Connecting�" TextColor="{StaticResource Muted}" FontSize="12" VerticalOptions="Center"/>
+   <Button Grid.Column="1" Text="Created by Lance Larsen" Clicked="WebsiteClicked" BackgroundColor="#232429" BorderColor="#45464D" BorderWidth="1" CornerRadius="8" HeightRequest="34" Padding="12,0" FontSize="12"/>
   </Grid>
-  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-   <Label x:Name="Status" Text="Connecting to your keyboard helper…" TextColor="{StaticResource Muted}" FontSize="12" VerticalOptions="Center"/>
-   <Button x:Name="Cancel" Grid.Column="1" Text="Cancel" Clicked="CancelClicked"/>
-   <Button x:Name="Save" Grid.Column="2" Text="Save changes" BackgroundColor="{StaticResource Accent}" TextColor="#19161F" Clicked="SaveClicked"/>
-  </Grid>
-  <BoxView HeightRequest="1" Color="#30323A"/>
-  <VerticalStackLayout Spacing="8">
-   <Label Text="Made by Lance Larsen" FontFamily="Segoe UI Semibold"/>
-   <Label Text="Built to put your favorite Codex models and reasoning levels one keypress away." FontSize="12" TextColor="{StaticResource Muted}"/>
-   <FlexLayout Wrap="Wrap" AlignItems="Center">
-    <Button Text="LanceLarsen.com ↗" Clicked="WebsiteClicked" BackgroundColor="Transparent" TextColor="{StaticResource Accent}" Padding="0,8,20,8"/>
-    <Button Text="Open source on GitHub ↗" Clicked="GithubClicked" BackgroundColor="Transparent" TextColor="{StaticResource Accent}" Padding="0,8,20,8"/>
-    <Label Text="Independent community project" FontSize="11" TextColor="{StaticResource Muted}"/>
-   </FlexLayout>
-  </VerticalStackLayout>
- </VerticalStackLayout></ScrollView>
+ </Grid>
 </ContentPage>

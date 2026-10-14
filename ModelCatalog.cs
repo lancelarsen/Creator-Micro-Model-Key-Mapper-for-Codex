@@ -11,10 +11,16 @@ internal sealed record ModelCatalog(string[] Models, DateTimeOffset? CheckedAt, 
         try
         {
             var catalog = JsonSerializer.Deserialize<ModelCatalog>(File.ReadAllText(CatalogPath));
-            if (catalog != null && catalog.Models is { Length: > 0 } && catalog.Models.All(m => !string.IsNullOrWhiteSpace(m))) return catalog;
+            if (catalog != null && catalog.Models is { Length: > 1 } && catalog.Models.All(m => !string.IsNullOrWhiteSpace(m))) return catalog;
         }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException) { }
-        return new(Presets.KnownModels, null, false);
+        return new(Presets.KnownModels, null, true);
+    }
+    internal ModelCatalog WithRefresh(string[] models)
+    {
+        if (models.Length < 2 || models.Length < Models.Length)
+            throw new InvalidOperationException("Codex returned fewer models than the saved list. The previous list has been kept; reopen Codex's model menu and refresh again.");
+        return this with { Models = models, CheckedAt = DateTimeOffset.Now };
     }
     internal void Save()
     {

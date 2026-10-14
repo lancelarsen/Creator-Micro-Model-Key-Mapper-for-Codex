@@ -13,6 +13,15 @@ internal static class SelfTests
             Console.WriteLine("PASS: " + name);
             passed++;
         }
+        Check("partial model refresh cannot replace the full catalog", () => {
+            var catalog = new ModelCatalog(Presets.KnownModels, null, true);
+            try { catalog.WithRefresh(["GPT-6.1 Sol"]); return false; }
+            catch (InvalidOperationException) { return catalog.Models.SequenceEqual(Presets.KnownModels); }
+        });
+        Check("complete model refresh preserves Codex order", () => {
+            var models = Presets.KnownModels.Reverse().ToArray();
+            return new ModelCatalog(Presets.KnownModels, null, true).WithRefresh(models).Models.SequenceEqual(models);
+        });
         Check("editor drafts do not change saved assignments", () => {
             var draft = new EditorDraft(); draft.Load(new(true, Assignments: Presets.Defaults()));
             draft.Assignments[0] = draft.Assignments[0] with { Enabled = true };
@@ -22,6 +31,11 @@ internal static class SelfTests
             var draft = new EditorDraft(); draft.RefreshOnOpen = true;
             draft.Load(new(true, Assignments: Presets.Defaults(), RefreshOnOpen: true));
             return !draft.IsDirty && draft.RefreshOnOpen;
+        });
+        Check("cancel discards assignments and refresh preference", () => {
+            var draft = new EditorDraft(); draft.Load(new(true, Assignments: Presets.Defaults(), RefreshOnOpen: true));
+            draft.Assignments[0] = draft.Assignments[0] with { Enabled = true }; draft.RefreshOnOpen = false; draft.Discard();
+            return !draft.IsDirty && !draft.Assignments[0].Enabled && draft.RefreshOnOpen;
         });
         Check("editor rejects incomplete assignment payload", () => {
             try { new EditorDraft().Load(new(true, Assignments: [])); return false; }

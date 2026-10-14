@@ -5,9 +5,13 @@ public partial class App : Application
     protected override Window CreateWindow(IActivationState? activationState)
     {
         var page = new MainPage();
-        var window = new Window(page) { Title = "Creator Micro Model Keys", Width = 1080, Height = 790, MinimumWidth = 540, MinimumHeight = 580 };
+        var window = new Window(page) { Title = "Creator Micro - Model Key Mapper for Codex", Width = 880, Height = 670, MinimumWidth = 880, MinimumHeight = 670 };
         window.HandlerChanged += (_, _) => {
             if (window.Handler?.PlatformView is Microsoft.UI.Xaml.Window native) {
+                native.ExtendsContentIntoTitleBar = true;
+                native.AppWindow.TitleBar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
+                native.AppWindow.TitleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
+                native.AppWindow.TitleBar.ButtonForegroundColor = Microsoft.UI.Colors.White;
                 native.AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "app.ico"));
                 bool approved = false;
                 native.AppWindow.Closing += async (_, e) => {

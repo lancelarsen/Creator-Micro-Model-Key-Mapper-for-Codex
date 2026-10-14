@@ -192,15 +192,23 @@ internal static class ModelSelector
         try
         {
             OpenModelList();
-            var buttons = root.FindAll(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.RadioButton));
-            var names = buttons.Cast<AutomationElement>().Where(button =>
-            {
-                try { return !button.Current.IsOffscreen && button.Current.IsEnabled && button.Current.Name.StartsWith("GPT-", StringComparison.Ordinal); }
-                catch (ElementNotAvailableException) { return false; }
-            }).Select(button => button.Current.Name).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(name => name, StringComparer.Ordinal).ToArray();
-            if (names.Length == 0) throw new InvalidOperationException("Codex did not expose model choices.");
-            return names;
+            string[] previous = [];
+            int stable = 0;
+            var timer = Stopwatch.StartNew();
+            while (timer.Elapsed < TimeSpan.FromSeconds(6)) {
+                RequireForeground(window);
+                var buttons = root.FindAll(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.RadioButton));
+                var names = buttons.Cast<AutomationElement>().Where(button => {
+                    try { return !button.Current.IsOffscreen && button.Current.IsEnabled && button.Current.Name.StartsWith("GPT-", StringComparison.Ordinal); }
+                    catch (ElementNotAvailableException) { return false; }
+                }).Select(button => button.Current.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                stable = names.SequenceEqual(previous) ? stable + 1 : 0;
+                previous = names;
+                if (names.Length >= 2 && stable >= 3 && timer.ElapsedMilliseconds >= 1000) return names;
+                Thread.Sleep(200);
+            }
+            throw new InvalidOperationException("Codex's model list did not finish loading. The previous list has been kept. Try Refresh Models again.");
         }
         finally { if (IsForeground(window)) PressKey(0x1B); }
     }

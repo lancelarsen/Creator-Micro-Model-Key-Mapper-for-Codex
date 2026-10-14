@@ -42,7 +42,7 @@ internal static class PresetRuntime
         object logLock = new();
         void Log(object data) { lock (logLock) writer.WriteLine(JsonSerializer.Serialize(new { at = DateTimeOffset.UtcNow, data })); }
         using var menu = new ContextMenuStrip();
-        using var icon = new NotifyIcon { Icon = IconArtwork.Load(), Text = "Micro model presets", ContextMenuStrip = menu, Visible = true };
+        using var icon = new NotifyIcon { Icon = IconArtwork.Load(), Text = "Creator Micro - Model Key Mapper for Codex", ContextMenuStrip = menu, Visible = true };
         bool paused = false, exiting = false, working = false;
         Preset? pending = null;
         Process? worker = null;
@@ -55,7 +55,7 @@ internal static class PresetRuntime
 
         void Notify(string message)
         {
-            icon.BalloonTipTitle = "Codex Micro presets";
+            icon.BalloonTipTitle = "Creator Micro - Model Key Mapper for Codex";
             icon.BalloonTipText = message;
             icon.ShowBalloonTip(2500);
         }
@@ -131,9 +131,27 @@ internal static class PresetRuntime
                     var catalog = ModelCatalog.Load();
                     switch (request.Operation) {
                         case "load": break;
+                        case "preferences":
+                            StartupRegistration.SetEnabled(request.LaunchOnStartup);
+                            catalog = catalog with { RefreshOnOpen = request.RefreshOnOpen }; catalog.Save(); break;
                         case "refresh":
-                            catalog = catalog with { Models = await StaWork.Run(ModelSelector.ListAvailableModels), CheckedAt = DateTimeOffset.Now };
-                            catalog.Save(); break;
+                            try {
+                                catalog = catalog.WithRefresh(await StaWork.Run(ModelSelector.ListAvailableModels));
+                                catalog.Save();
+                            }
+                            finally {
+                                // Return to the mapper only if Codex still owns focus;
+                                // respect a user who switched to another app while refreshing.
+                                if (settingsWindow is { HasExited: false }) {
+                                    try {
+                                        if (ModelSelector.IsForeground(ModelSelector.FindWindow())) {
+                                            settingsWindow.Refresh();
+                                            SetForegroundWindow(settingsWindow.MainWindowHandle);
+                                        }
+                                    } catch (InvalidOperationException) { }
+                                }
+                            }
+                            break;
                         case "save":
                             var before = Presets.WithAssignments(request.Original ?? []);
                             var after = Presets.WithAssignments(request.Assignments ?? []);
@@ -143,7 +161,7 @@ internal static class PresetRuntime
                             catalog = catalog with { RefreshOnOpen = request.RefreshOnOpen }; catalog.Save(); break;
                         default: throw new InvalidOperationException("Unsupported settings request.");
                     }
-                    completion.SetResult(new(true, Assignments: PresetStore.Load(), Models: catalog.Models, CheckedAt: catalog.CheckedAt, RefreshOnOpen: catalog.RefreshOnOpen));
+                    completion.SetResult(new(true, Assignments: PresetStore.Load(), Models: catalog.Models, CheckedAt: catalog.CheckedAt, RefreshOnOpen: catalog.RefreshOnOpen, LaunchOnStartup: StartupRegistration.Enabled));
                 } catch (Exception e) { completion.SetResult(new(false, e.Message)); }
                 finally { editorBusy = false; }
             });
@@ -163,7 +181,7 @@ internal static class PresetRuntime
             catch (Exception e) { Log(new { kind = "settings-reload-error", message = e.Message }); lastSettingsWrite = modified; }
         };
         var pause = menu.Items.Add("Pause");
-        pause.Click += (_, _) => { paused = !paused; pause.Text = paused ? "Resume" : "Pause"; pending = null; icon.Text = paused ? "Micro presets: paused" : "Micro model presets"; };
+        pause.Click += (_, _) => { paused = !paused; pause.Text = paused ? "Resume" : "Pause"; pending = null; icon.Text = paused ? "Creator Micro - Model Key Mapper for Codex: paused" : "Creator Micro - Model Key Mapper for Codex"; };
         menu.Items.Add("Exit", null, (_, _) => {
             if (editorBusy) { Notify("Wait for the settings operation to finish before exiting."); return; }
             System.Windows.Forms.Application.ExitThread();

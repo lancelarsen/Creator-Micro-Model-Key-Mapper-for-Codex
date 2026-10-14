@@ -10,9 +10,9 @@ if (-not $resolvedApp -or -not (Test-Path -LiteralPath $resolvedApp.ProviderPath
 $appPath = $resolvedApp.ProviderPath
 
 $startupFolder = [Environment]::GetFolderPath('Startup')
-$shortcutPath = Join-Path $startupFolder 'Micro Model Presets.lnk'
+$shortcutPath = Join-Path $startupFolder 'Creator Micro - Model Key Mapper for Codex.lnk'
 $shell = New-Object -ComObject WScript.Shell
-foreach ($legacyName in @('Codex Micro Model Presets.lnk')) {
+foreach ($legacyName in @('Codex Micro Model Presets.lnk', 'Micro Model Presets.lnk', 'Creator Micro Model Keys.lnk', 'Creator Micro - Model Key Mapper.lnk')) {
     $legacy = Join-Path $startupFolder $legacyName
     if (Test-Path -LiteralPath $legacy) {
         $target = $shell.CreateShortcut($legacy).TargetPath

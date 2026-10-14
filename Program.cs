@@ -17,7 +17,7 @@ internal static class Program
         {
             Console.Error.WriteLine(args.Any(a => a is "--inspect-bindings" or "--verify-bindings") ? error.ToString() : error.Message);
             if (args.Length == 0 || args.Contains("--listen") || args.Contains("--settings") || args.Contains("--restore-layout"))
-                System.Windows.Forms.MessageBox.Show(error.Message, "Codex Micro presets", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
+                System.Windows.Forms.MessageBox.Show(error.Message, "Creator Micro - Model Key Mapper for Codex", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
             return 1;
         }
     }
@@ -82,7 +82,7 @@ internal static class Program
             }
             catch (Exception error) { Console.Error.WriteLine(error.Message); return 1; }
         }
-        throw new ArgumentException("Unknown command-line option. Start without arguments to run the Micro model presets app.");
+        throw new ArgumentException("Unknown command-line option. Start without arguments to run the Creator Micro - Model Key Mapper for Codex app.");
     }
 
     internal static string? GetArg(string[] args, string name)
