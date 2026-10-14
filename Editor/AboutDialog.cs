@@ -16,9 +16,10 @@ internal static class AboutDialog
         var content = new C.StackPanel { Spacing = 20, MaxWidth = 400 };
         var links = new C.StackPanel { Spacing = 8 };
         links.Children.Add(Link("\uE77B", "Lance Larsen", "Creator · LanceLarsen.com", "https://www.LanceLarsen.com"));
-        links.Children.Add(Link("\uE943", "Open Source", "Explore the project on GitHub", "https://github.com/lancelarsen/Creator-Micro-Model-Key-Mapper-for-Codex"));
+        links.Children.Add(Link(GitHubIcon(), "Open Source", "Explore the project on GitHub", "https://github.com/lancelarsen/Creator-Micro-Model-Key-Mapper-for-Codex"));
+        links.Children.Add(Link("\uE765", "Creator Micro", "Explore the keyboard at Work Louder", "https://worklouder.cc/creator-micro-2"));
         var preferences = new C.StackPanel { Spacing = 8 };
-        var label = Text("Startup preferences", 14); label.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold; preferences.Children.Add(label);
+        var label = Text("Starting Preferences", 14); label.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold; preferences.Children.Add(label);
         var toggle = new C.CheckBox { Content = "Refresh models when opening", IsChecked = refreshOnOpen, IsEnabled = enabled, Foreground = Brush(242, 241, 247) };
         var startup = new C.CheckBox { Content = "Launch on Startup", IsChecked = launchOnStartup, IsEnabled = enabled, Foreground = Brush(242, 241, 247) };
         var status = Text("", 12, Muted); status.Visibility = X.Visibility.Collapsed;
@@ -39,9 +40,7 @@ internal static class AboutDialog
         var settingsHeading = new C.StackPanel { Orientation = C.Orientation.Horizontal, Spacing = 12, HorizontalAlignment = X.HorizontalAlignment.Center };
         settingsHeading.Children.Add(new C.FontIcon { Glyph = "\uE713", FontFamily = new M.FontFamily("Segoe Fluent Icons"), FontSize = 26, Foreground = Accent });
         settingsHeading.Children.Add(settingsTitle); content.Children.Add(settingsHeading);
-        content.Children.Add(new C.Border { Height = 1, Background = Brush(60, 62, 72) });
         content.Children.Add(new C.Border { Child = preferences, Padding = new X.Thickness(16), Background = Surface, CornerRadius = new X.CornerRadius(12) });
-        content.Children.Add(new C.Border { Height = 1, Background = Brush(60, 62, 72), Margin = new X.Thickness(0, 4, 0, 4) });
         content.Children.Add(links);
         content.Children.Add(Text("Independent community project. Codex is by OpenAI.", 11, Muted));
         var closeStyle = new X.Style(typeof(C.Button));
@@ -72,12 +71,24 @@ internal static class AboutDialog
         }
         return null;
     }
-    private static C.Button Link(string glyph, string title, string subtitle, string url)
+    // GitHub Octicons mark; source and MIT license are in assets/github-mark.*.
+    private static X.UIElement GitHubIcon()
+    {
+        var path = (X.Shapes.Path)X.Markup.XamlReader.Load("""
+            <Path xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Data="M6.766 11.328c-2.063-.25-3.516-1.734-3.516-3.656 0-.781.281-1.625.75-2.188-.203-.515-.172-1.609.063-2.062.625-.078 1.468.25 1.968.703.594-.187 1.219-.281 1.985-.281.765 0 1.39.094 1.953.265.484-.437 1.344-.765 1.969-.687.218.422.25 1.515.046 2.047.5.593.766 1.39.766 2.203 0 1.922-1.453 3.375-3.547 3.64.531.344.89 1.094.89 1.954v1.625c0 .468.391.734.86.547C13.781 14.359 16 11.53 16 8.03 16 3.61 12.406 0 7.984 0 3.563 0 0 3.61 0 8.031a7.88 7.88 0 0 0 5.172 7.422c.422.156.828-.125.828-.547v-1.25c-.219.094-.5.156-.75.156-1.031 0-1.64-.562-2.078-1.609-.172-.422-.36-.672-.719-.719-.187-.015-.25-.093-.25-.187 0-.188.313-.328.625-.328.453 0 .844.281 1.25.86.313.452.64.655 1.031.655s.641-.14 1-.5c.266-.265.47-.5.657-.656"/>
+            """);
+        path.Fill = Accent;
+        return new C.Viewbox { Width = 24, Height = 24, Child = path, VerticalAlignment = X.VerticalAlignment.Center };
+    }
+    private static C.Button Link(string glyph, string title, string subtitle, string url) =>
+        Link(new C.FontIcon { Glyph = glyph, FontFamily = new M.FontFamily("Segoe Fluent Icons"), FontSize = 24, Foreground = Accent, VerticalAlignment = X.VerticalAlignment.Center }, title, subtitle, url);
+
+    private static C.Button Link(X.UIElement icon, string title, string subtitle, string url)
     {
         var row = new C.Grid { ColumnSpacing = 16 };
         row.ColumnDefinitions.Add(new() { Width = X.GridLength.Auto });
         row.ColumnDefinitions.Add(new() { Width = new X.GridLength(1, X.GridUnitType.Star) });
-        row.Children.Add(new C.FontIcon { Glyph = glyph, FontFamily = new M.FontFamily("Segoe Fluent Icons"), FontSize = 24, Foreground = Accent, VerticalAlignment = X.VerticalAlignment.Center });
+        row.Children.Add(icon);
         var copy = new C.StackPanel { Spacing = 4 };
         var name = Text(title, 15); name.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         copy.Children.Add(name); copy.Children.Add(Text(subtitle, 12, Muted));

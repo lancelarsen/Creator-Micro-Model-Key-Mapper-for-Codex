@@ -24,6 +24,12 @@ public partial class MainPage : ContentPage
         Loaded += async (_, _) => {
             if (initialized) return; initialized = true;
             var args = Environment.GetCommandLineArgs();
+            int demo = Array.IndexOf(args, "--capture-demo");
+            if (demo >= 0 && demo + 1 < args.Length) {
+                draft.Load(new(true, Assignments: Presets.Defaults()));
+                SetCatalog(new(true, Models: Presets.KnownModels)); ShowSelection();
+                await CaptureDemo(args[demo + 1]); return;
+            }
             int preview = Array.IndexOf(args, "--ui-check");
             if (preview >= 0 && preview + 1 < args.Length) {
                 draft.Load(new(true, Assignments: Presets.Defaults()));

@@ -7,7 +7,7 @@ public partial class App : MauiWinUIApplication
     private readonly Mutex? instance;
     public App()
     {
-        if (!Environment.GetCommandLineArgs().Contains("--ui-check")) {
+        if (!Environment.GetCommandLineArgs().Any(arg => arg is "--ui-check" or "--capture-demo")) {
             instance = new Mutex(true, "Local\\CreatorMicroModelKeys.Editor", out bool created);
             if (!created) {
                 foreach (var process in Process.GetProcessesByName("CreatorMicroEditor")) {

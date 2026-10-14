@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Windows-only setup guide, implementation walkthrough, native screenshots, and GIF/MP4 editor demos.
+- Creator Micro product link and GitHub logo in Settings.
 - Native Windows MAUI keypad editor for all seven lower keys, with model and reasoning assignments.
 - Settings popup with launch-on-startup and refresh-on-opening preferences, enabled by default for new installations.
 - Creator website and Open Source buttons, plus a creator link on the main screen.
