@@ -26,22 +26,17 @@ internal static class Program
     {
         System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2);
         System.Windows.Forms.Application.EnableVisualStyles();
-        if (GetArg(args, "--ui-check") is string output)
-        {
-            using var preview = new PresetConfigurationForm(Presets.Defaults(), preview: true);
-            preview.Show();
-            preview.VerifyEditor(output);
-            return 0;
-        }
         if (args.Contains("--stop")) { PresetRuntime.Stop(); return 0; }
         if (args.Length == 0 || args.Contains("--listen")) { Presets.SetAll(PresetStore.Load()); PresetRuntime.Run(PresetStore.LogPath, args.Contains("--settings")); return 0; }
         if (args.Contains("--settings"))
         {
-            Presets.SetAll(PresetStore.Load());
-            using var form = new PresetConfigurationForm(Presets.All);
-            form.AssignmentsSaved += Presets.SetAll;
-            System.Windows.Forms.Application.Run(form);
-            return 0;
+            Presets.SetAll(PresetStore.Load()); PresetRuntime.Run(PresetStore.LogPath, true); return 0;
+        }
+        if (args.Contains("--editor-check")) {
+            var loaded = EditorProtocol.Request(new("load")).GetAwaiter().GetResult();
+            var result = EditorProtocol.Request(new("save", loaded.Assignments, loaded.Assignments, loaded.RefreshOnOpen)).GetAwaiter().GetResult();
+            if (!result.Assignments!.SequenceEqual(loaded.Assignments!)) throw new InvalidOperationException("Settings roundtrip changed assignments.");
+            Console.WriteLine("PASS: live MAUI helper load/save roundtrip preserved all assignments."); return 0;
         }
         if (args.Contains("--self-test")) { SelfTests.Run(); return 0; }
         if (GetArg(args, "--default-key") is string defaultKey)

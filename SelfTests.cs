@@ -13,6 +13,28 @@ internal static class SelfTests
             Console.WriteLine("PASS: " + name);
             passed++;
         }
+        Check("editor drafts do not change saved assignments", () => {
+            var draft = new EditorDraft(); draft.Load(new(true, Assignments: Presets.Defaults()));
+            draft.Assignments[0] = draft.Assignments[0] with { Enabled = true };
+            return draft.IsDirty && !draft.Original[0].Enabled && draft.SaveRequest().Assignments![0].Enabled;
+        });
+        Check("editor save resets dirty state and keeps refresh preference", () => {
+            var draft = new EditorDraft(); draft.RefreshOnOpen = true;
+            draft.Load(new(true, Assignments: Presets.Defaults(), RefreshOnOpen: true));
+            return !draft.IsDirty && draft.RefreshOnOpen;
+        });
+        Check("editor rejects incomplete assignment payload", () => {
+            try { new EditorDraft().Load(new(true, Assignments: [])); return false; }
+            catch (System.IO.InvalidDataException) { return true; }
+        });
+        Check("private pipe roundtrip and error propagation", () => {
+            string name = "CreatorMicro.Test." + Guid.NewGuid().ToString("N");
+            using var server = new EditorServer(request => Task.FromResult(request.Operation == "load"
+                ? new EditorReply(true, Assignments: Presets.Defaults()) : new EditorReply(false, "Test rejection")), name);
+            if (EditorProtocol.Request(new("load"), name).GetAwaiter().GetResult().Assignments?.Length != 7) return false;
+            try { EditorProtocol.Request(new("invalid"), name).GetAwaiter().GetResult(); return false; }
+            catch (InvalidOperationException e) { return e.Message == "Test rejection"; }
+        });
         string Notify(string key, int act) => "{\"m\":\"v.oai.hid\",\"p\":{\"k\":\"" + key + "\",\"act\":" + act + "}}\n";
         Check("physical H selects Luna Extra High", () => new ReportDecoder().Feed(1, Packet(Notify("ACT07", 1))).SingleOrDefault()?.Model == "GPT-6 Luna");
         Check("physical I selects Sol High", () => new ReportDecoder().Feed(1, Packet(Notify("ACT08", 1))).SingleOrDefault()?.Effort == "High");

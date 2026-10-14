@@ -12,10 +12,17 @@ $appPath = $resolvedApp.ProviderPath
 $startupFolder = [Environment]::GetFolderPath('Startup')
 $shortcutPath = Join-Path $startupFolder 'Micro Model Presets.lnk'
 $shell = New-Object -ComObject WScript.Shell
+foreach ($legacyName in @('Codex Micro Model Presets.lnk')) {
+    $legacy = Join-Path $startupFolder $legacyName
+    if (Test-Path -LiteralPath $legacy) {
+        $target = $shell.CreateShortcut($legacy).TargetPath
+        if ([IO.Path]::GetFileName($target) -eq 'CodexMicroPresets.exe') { Remove-Item -LiteralPath $legacy }
+    }
+}
 $shortcut = $shell.CreateShortcut($shortcutPath)
 $shortcut.TargetPath = $appPath
 $shortcut.Arguments = '--listen'
-$shortcut.WorkingDirectory = $PSScriptRoot
+$shortcut.WorkingDirectory = Split-Path $appPath -Parent
 $shortcut.WindowStyle = 7
 $shortcut.Description = 'Start the Micro model preset keys after sign-in'
 $shortcut.Save()

@@ -31,7 +31,10 @@ internal static class PresetRuntime
     internal static void Run(string logPath, bool showSettings = false)
     {
         using var mutex = new Mutex(true, MutexName, out bool created);
-        if (!created) return;
+        if (!created) {
+            if (showSettings) { try { using var show = EventWaitHandle.OpenExisting("Local\\CreatorMicroModelKeys.ShowEditor"); show.Set(); } catch (WaitHandleCannotBeOpenedException) { } }
+            return;
+        }
         using var stop = new EventWaitHandle(false, EventResetMode.AutoReset, StopName);
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(logPath))!);
         if (File.Exists(logPath) && new FileInfo(logPath).Length > 1_048_576) File.WriteAllText(logPath, "");
@@ -44,11 +47,11 @@ internal static class PresetRuntime
         Preset? pending = null;
         Process? worker = null;
         var decoder = new ReportDecoder();
-        Form? settingsWindow = null;
+        Process? settingsWindow = null;
+        bool editorBusy = false, stopRequested = false;
         var assignmentItems = new List<ToolStripItem>();
         long lastPress = 0;
         string? lastPosition = null;
-        uint threadId = GetCurrentThreadId();
 
         void Notify(string message)
         {
@@ -61,7 +64,7 @@ internal static class PresetRuntime
         _ = dispatcher.Handle;
         async void SelectNext(Preset preset)
         {
-            if (exiting || paused) return;
+            if (exiting || paused || editorBusy) return;
             if (working) { pending = preset; return; }
             working = true;
             try
@@ -78,7 +81,7 @@ internal static class PresetRuntime
                 string result = await output, error = await errors;
                 if (worker.ExitCode != 0) throw new InvalidOperationException(error.Trim());
                 Log(new { kind = "preset-selected", preset.Position, preset.Model, preset.Effort, result = result.Trim() });
-                string tooltip = $"{preset.Position}: {preset.Model} {preset.Effort}";
+                string tooltip = $"{preset.Model} {preset.Effort}";
                 icon.Text = tooltip.Length > 63 ? tooltip[..63] : tooltip;
             }
             catch (Exception error)
@@ -101,7 +104,7 @@ internal static class PresetRuntime
             assignmentItems.Clear();
             foreach (var preset in Presets.All)
             {
-                var item = menu.Items.Add(preset.Enabled ? $"{preset.Position}: {preset.Model} — {preset.Effort}" : $"{preset.Position}: (default)");
+                var item = menu.Items.Add(preset.Enabled ? $"{preset.Model} — {preset.Effort}" : $"{Presets.DefaultActions[Array.IndexOf(Presets.Positions, preset.Position)]} (default)");
                 item.Enabled = false;
                 assignmentItems.Add(item);
             }
@@ -109,29 +112,51 @@ internal static class PresetRuntime
         void ShowSettings()
         {
             if (working) { Notify("Wait for model selection to finish, then open settings."); return; }
-            if (settingsWindow is { IsDisposed: false }) { settingsWindow.Activate(); settingsWindow.BringToFront(); return; }
+            if (settingsWindow is { HasExited: false }) { ShowWindow(settingsWindow.MainWindowHandle, 9); SetForegroundWindow(settingsWindow.MainWindowHandle); return; }
             try
             {
-                var form = new PresetConfigurationForm(Presets.All);
-                settingsWindow = form;
-                form.AssignmentsSaved += presets =>
-                {
-                    Presets.SetAll(presets);
-                    UpdateAssignmentMenu();
-                    Log(new { kind = "assignments-saved", assignments = Presets.All.Select(preset => new { preset.Position, preset.Model, preset.EffortPosition }).ToArray() });
-                    Notify("Key assignments saved.");
-                };
-                form.FormClosed += (_, _) => settingsWindow = null;
-                form.Show();
-                form.Activate();
+                settingsWindow?.Dispose();
+                var path = Path.Combine(AppContext.BaseDirectory, "editor", "CreatorMicroEditor.exe");
+                if (!File.Exists(path)) throw new FileNotFoundException("The MAUI editor is missing. Reinstall the complete application.");
+                settingsWindow = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
             }
             catch (Exception error) { Notify(error.Message); }
         }
+        using var server = new EditorServer(request => {
+            var completion = new TaskCompletionSource<EditorReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+            dispatcher.BeginInvoke(async () => {
+                if (working || editorBusy) { completion.SetResult(new(false, "A key operation is in progress. Try again in a moment.")); return; }
+                editorBusy = true;
+                try {
+                    var catalog = ModelCatalog.Load();
+                    switch (request.Operation) {
+                        case "load": break;
+                        case "refresh":
+                            catalog = catalog with { Models = await StaWork.Run(ModelSelector.ListAvailableModels), CheckedAt = DateTimeOffset.Now };
+                            catalog.Save(); break;
+                        case "save":
+                            var before = Presets.WithAssignments(request.Original ?? []);
+                            var after = Presets.WithAssignments(request.Assignments ?? []);
+                            if (!PresetStore.Load().SequenceEqual(before)) throw new InvalidOperationException("Assignments changed. Close and reopen settings before saving.");
+                            await StaWork.Run(() => { MicroBindings.SaveAssignments(before, after); return true; });
+                            Presets.SetAll(after); UpdateAssignmentMenu();
+                            catalog = catalog with { RefreshOnOpen = request.RefreshOnOpen }; catalog.Save(); break;
+                        default: throw new InvalidOperationException("Unsupported settings request.");
+                    }
+                    completion.SetResult(new(true, Assignments: PresetStore.Load(), Models: catalog.Models, CheckedAt: catalog.CheckedAt, RefreshOnOpen: catalog.RefreshOnOpen));
+                } catch (Exception e) { completion.SetResult(new(false, e.Message)); }
+                finally { editorBusy = false; }
+            });
+            return completion.Task;
+        });
         UpdateAssignmentMenu();
+        using var showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "Local\\CreatorMicroModelKeys.ShowEditor");
+        var showRegistration = ThreadPool.RegisterWaitForSingleObject(showEvent, (_, _) => dispatcher.BeginInvoke(ShowSettings), null, Timeout.Infinite, false);
         DateTime lastSettingsWrite = File.Exists(PresetStore.SettingsPath) ? File.GetLastWriteTimeUtc(PresetStore.SettingsPath) : DateTime.MinValue;
         using var settingsTimer = new System.Windows.Forms.Timer { Interval = 1000, Enabled = true };
         settingsTimer.Tick += (_, _) => {
-            if (working || settingsWindow is { IsDisposed: false }) return;
+            if (stopRequested && !working && !editorBusy) { System.Windows.Forms.Application.ExitThread(); return; }
+            if (working || editorBusy) return;
             var modified = File.Exists(PresetStore.SettingsPath) ? File.GetLastWriteTimeUtc(PresetStore.SettingsPath) : DateTime.MinValue;
             if (modified == lastSettingsWrite) return;
             try { Presets.SetAll(PresetStore.Load()); UpdateAssignmentMenu(); lastSettingsWrite = modified; }
@@ -140,12 +165,12 @@ internal static class PresetRuntime
         var pause = menu.Items.Add("Pause");
         pause.Click += (_, _) => { paused = !paused; pause.Text = paused ? "Resume" : "Pause"; pending = null; icon.Text = paused ? "Micro presets: paused" : "Micro model presets"; };
         menu.Items.Add("Exit", null, (_, _) => {
-            if (settingsWindow is PresetConfigurationForm { IsBusy: true }) { Notify("Wait for the settings operation to finish before exiting."); return; }
+            if (editorBusy) { Notify("Wait for the settings operation to finish before exiting."); return; }
             System.Windows.Forms.Application.ExitThread();
         });
         icon.MouseClick += (_, eventArgs) => { if (eventArgs.Button == MouseButtons.Left) ShowSettings(); };
         using var listener = new MicroInputListener((device, report) => {
-            if (paused || exiting || settingsWindow is PresetConfigurationForm { IsDisposed: false, IsBusy: true }) return;
+            if (paused || exiting || editorBusy) return;
             foreach (var preset in decoder.Feed(device, report))
             {
                 long now = Environment.TickCount64;
@@ -155,7 +180,10 @@ internal static class PresetRuntime
                 dispatcher.BeginInvoke(() => SelectNext(preset));
             }
         }, Log);
-        var registration = ThreadPool.RegisterWaitForSingleObject(stop, (_, _) => PostThreadMessage(threadId, 0x12, 0, 0), null, Timeout.Infinite, executeOnlyOnce: true);
+        var registration = ThreadPool.RegisterWaitForSingleObject(stop, (_, _) => dispatcher.BeginInvoke(() => {
+            stopRequested = true;
+            if (!working && !editorBusy) System.Windows.Forms.Application.ExitThread();
+        }), null, Timeout.Infinite, executeOnlyOnce: true);
         Log(new { kind = "running", pid = Environment.ProcessId, positions = Presets.All.Where(p => p.Enabled).Select(p => p.Position).ToArray() });
         if (showSettings) dispatcher.BeginInvoke(ShowSettings);
         try { System.Windows.Forms.Application.Run(); }
@@ -163,6 +191,7 @@ internal static class PresetRuntime
         {
             exiting = true;
             registration.Unregister(null);
+            showRegistration.Unregister(null);
             pending = null;
             if (worker != null && !worker.HasExited) { worker.Kill(entireProcessTree: true); worker.WaitForExit(2000); }
             icon.Visible = false;
@@ -172,8 +201,9 @@ internal static class PresetRuntime
         }
     }
 
-    [DllImport("kernel32.dll")]
-    private static extern uint GetCurrentThreadId();
     [DllImport("user32.dll")]
-    private static extern bool PostThreadMessage(uint thread, uint message, nuint wParam, nint lParam);
+    private static extern bool ShowWindow(nint window, int command);
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(nint window);
+
 }

@@ -10,6 +10,11 @@
     <ApplicationIcon>assets\codex-micro-presets.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Editor\**\*.cs" />
+    <Page Remove="Editor\**\*.xaml" />
+    <ApplicationDefinition Remove="Editor\**\*.xaml" />
+    <EmbeddedResource Remove="Editor\**\*" />
+    <None Remove="Editor\**\*" />
     <Content Include="assets\codex-micro-presets.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

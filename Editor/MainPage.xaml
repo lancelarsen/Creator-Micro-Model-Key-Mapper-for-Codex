@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" xmlns:local="clr-namespace:CreatorMicroEditor" x:Class="CreatorMicroEditor.MainPage" BackgroundColor="{StaticResource Background}">
+ <ScrollView x:Name="PageScroll"><VerticalStackLayout Padding="32,24" Spacing="22">
+  <Grid ColumnDefinitions="*,Auto">
+   <VerticalStackLayout Spacing="5"><Label Text="Creator Micro" FontFamily="Segoe UI Semibold" FontSize="28"/><Label Text="Your models. One keypress away." TextColor="{StaticResource Muted}"/></VerticalStackLayout>
+   <Label Grid.Column="1" Text="MODEL KEYS" FontSize="11" CharacterSpacing="2" TextColor="{StaticResource Accent}" VerticalOptions="Center"/>
+  </Grid>
+  <Grid x:Name="Body" ColumnDefinitions="1.15*,*" RowDefinitions="Auto,Auto" ColumnSpacing="28" RowSpacing="22">
+   <VerticalStackLayout x:Name="DevicePanel" Spacing="14" VerticalOptions="Center">
+    <local:Keypad x:Name="Keys"/>
+    <Label Text="Select a lower key to customize it." HorizontalTextAlignment="Center" TextColor="{StaticResource Muted}" FontSize="12"/>
+   </VerticalStackLayout>
+   <Border x:Name="EditorPanel" Grid.Column="1" BackgroundColor="{StaticResource Surface}" Stroke="#353740" StrokeShape="RoundRectangle 18" Padding="24">
+    <VerticalStackLayout Spacing="16">
+     <Label Text="KEY ASSIGNMENT" FontSize="10" CharacterSpacing="2" TextColor="{StaticResource Muted}"/>
+     <Label x:Name="SelectionTitle" FontSize="23" FontFamily="Segoe UI Semibold"/>
+     <Grid ColumnDefinitions="*,Auto"><Label Text="Use a model preset" VerticalOptions="Center"/><Switch x:Name="Override" Grid.Column="1" OnColor="{StaticResource Accent}" Toggled="OverrideChanged"/></Grid>
+     <VerticalStackLayout x:Name="PresetFields" Spacing="8">
+      <Label Text="Model" FontSize="12" TextColor="{StaticResource Muted}"/>
+      <Picker x:Name="Model" SemanticProperties.Description="Model" SelectedIndexChanged="ModelChanged"/>
+      <Entry x:Name="CustomModel" Placeholder="Exact model name" IsVisible="False" TextChanged="CustomChanged"/>
+      <Label Text="Reasoning level" FontSize="12" Margin="0,8,0,0" TextColor="{StaticResource Muted}"/>
+      <Picker x:Name="Effort" SemanticProperties.Description="Reasoning level" SelectedIndexChanged="EffortChanged"/>
+     </VerticalStackLayout>
+     <Label x:Name="DefaultHint" FontSize="12" TextColor="{StaticResource Muted}"/>
+     <BoxView HeightRequest="1" Color="#353740" Margin="0,4"/>
+     <Grid ColumnDefinitions="*,Auto"><Label Text="Available models" VerticalOptions="Center"/><Button Grid.Column="1" Text="Refresh" Clicked="RefreshClicked" Padding="14,8"/></Grid>
+     <Label x:Name="CatalogStatus" FontSize="12" TextColor="{StaticResource Muted}"/>
+     <Grid ColumnDefinitions="Auto,*"><CheckBox HorizontalOptions="Start" WidthRequest="32" x:Name="AutoRefresh" Color="{StaticResource Accent}" CheckedChanged="AutoChanged"/><Label Grid.Column="1" Text="Refresh when settings opens" VerticalOptions="Center" FontSize="12"/></Grid>
+    </VerticalStackLayout>
+   </Border>
+  </Grid>
+  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+   <Label x:Name="Status" Text="Connecting to your keyboard helper…" TextColor="{StaticResource Muted}" FontSize="12" VerticalOptions="Center"/>
+   <Button x:Name="Cancel" Grid.Column="1" Text="Cancel" Clicked="CancelClicked"/>
+   <Button x:Name="Save" Grid.Column="2" Text="Save changes" BackgroundColor="{StaticResource Accent}" TextColor="#19161F" Clicked="SaveClicked"/>
+  </Grid>
+  <BoxView HeightRequest="1" Color="#30323A"/>
+  <VerticalStackLayout Spacing="8">
+   <Label Text="Made by Lance Larsen" FontFamily="Segoe UI Semibold"/>
+   <Label Text="Built to put your favorite Codex models and reasoning levels one keypress away." FontSize="12" TextColor="{StaticResource Muted}"/>
+   <FlexLayout Wrap="Wrap" AlignItems="Center">
+    <Button Text="LanceLarsen.com ↗" Clicked="WebsiteClicked" BackgroundColor="Transparent" TextColor="{StaticResource Accent}" Padding="0,8,20,8"/>
+    <Button Text="Open source on GitHub ↗" Clicked="GithubClicked" BackgroundColor="Transparent" TextColor="{StaticResource Accent}" Padding="0,8,20,8"/>
+    <Label Text="Independent community project" FontSize="11" TextColor="{StaticResource Muted}"/>
+   </FlexLayout>
+  </VerticalStackLayout>
+ </VerticalStackLayout></ScrollView>
+</ContentPage>

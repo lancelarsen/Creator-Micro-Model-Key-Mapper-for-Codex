@@ -1,6 +1,12 @@
 # Changelog
 
 ## Unreleased
+- Replaced the settings window with a native Windows MAUI keypad editor.
+- Removed visible position letters and added a stacked layout for narrower windows.
+- Preserved assignments, tray listening, startup, and native action restoration through a private per-user helper connection.
+
+
+## Unreleased
 
 ### Added
 - A dark settings window modeled on the Creator Micro, with seven selectable lower keys.

@@ -1,6 +1,6 @@
 # Creator Micro Model Keys
 
-A Windows tray app by [Lance Larsen](https://www.LanceLarsen.com), built to put your favorite Codex models and reasoning levels one keypress away. Click a key in the hardware-shaped editor to assign a preset to any of the seven lower positions, G–M, or choose **(default)** to keep its Codex action.
+A Windows tray app by [Lance Larsen](https://www.LanceLarsen.com), built to put your favorite Codex models and reasoning levels one keypress away. Click a key in the hardware-shaped editor to assign a preset to any of the seven lower keys, or choose **(default)** to keep its Codex action.
 
 The initial presets are H = GPT-6 Luna / Extra High, I = GPT-6.1 Sol / High, and J = GPT-6 Astra / Low. G, K, L, and M retain their native actions. Existing three-key settings migrate automatically.
 
@@ -23,15 +23,24 @@ Saving override/default changes needs the Codex Creator Micro page to be availab
 
 ## Build and run
 
-Requirements: Windows 10 or 11 x64. Building requires the .NET 10 SDK; running the published app requires the .NET 10 Desktop Runtime.
+Requirements: Windows 10 or 11 x64. Building requires the .NET 10 SDK and `maui-windows` workload; running the published app requires the .NET 10 Desktop Runtime.
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained false -o publish
+dotnet workload install maui-windows
+.\scripts\Publish.ps1
 ```
+
+Publish both projects together; keep the `editor` subfolder beside the helper. The MAUI editor includes its own runtime. Closing it leaves the helper listening.
 
 Run `publish\CodexMicroPresets.exe`. Click the tray icon, choose your assignments, and save to set up the native bindings. Use `--listen --settings` to start the tray listener with its editor open.
 
-To start the app automatically when you sign in, run:
+To install both components, keep a backup of the previous installation, and start automatically at sign-in, run:
+
+```powershell
+.\scripts\Install.ps1
+```
+
+To register a custom installation location for startup, run:
 
 ```powershell
 .\scripts\Install-Startup.ps1 -ApplicationPath .\publish\CodexMicroPresets.exe
@@ -50,7 +59,7 @@ Reasoning choices map to slider steps and the resulting label is verified, inclu
 ```powershell
 dotnet build -c Release
 dotnet .\bin\Release\net10.0-windows\CodexMicroPresets.dll --self-test
-dotnet .\bin\Release\net10.0-windows\CodexMicroPresets.dll --ui-check .\artifacts\ui
+.\publish\editor\CreatorMicroEditor.exe --ui-check .\artifacts\ui
 ```
 
 The native UI check exercises all seven key selections and default/override toggles and renders two window sizes. `--verify-bindings` is an interactive integration check: with Codex open, it temporarily changes and restores all seven lower keys. Do not run it while using those keys. `--refresh-models` checks and caches the current model list. `--default-key K` restores a single key to its saved native action; `--restore-layout` stops the listener and restores every overridden key.
@@ -59,7 +68,9 @@ The native UI check exercises all seven key selections and default/override togg
 
 - `ModelSelector.cs`: Codex window targeting, visible model controls, and selection verification.
 - `MicroInputListener.cs` and `ReportDecoder.cs`: read-only device event capture and parsing.
-- `PresetConfigurationForm.cs`, `KeypadView.cs`, and `PresetStore.cs`: keypad editor and per-user settings.
+- `Editor/`: native MAUI XAML editor, responsive keypad, and draft settings.
+- `EditorProtocol.cs` and `EditorServer.cs`: current-user-only named pipe; UI requests load, refresh, or save while the helper owns native operations.
+- `PresetStore.cs`: compatible per-user settings.
 - `ModelCatalog.cs`: cached model discovery and optional refresh on open.
 - `MicroBindings.cs`: native Codex keycap/action backup, change, verification, and rollback.
 - `assets/codex-micro-presets.svg`: source for the three-key icon; `tools/GenerateIcon.ps1` generates the Windows icon files.
